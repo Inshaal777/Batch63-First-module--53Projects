@@ -3,7 +3,9 @@ Num_sides = 6
 
 def roll_dice():
     die1: int = random.randint(1, Num_sides)
-    die2: int = random.randint(2, Num_sides)
+    die2: int = random.randint(1, Num_sides)
+    print(die1)
+    print(die2)
     total : int = die1 + die2
     print("Total of two dice:", total)
 
