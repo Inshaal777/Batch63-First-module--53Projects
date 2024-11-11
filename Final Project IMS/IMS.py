@@ -35,40 +35,40 @@ class Inventory:
 
     def add_product(self, product):
         if product.product_id in self.products:
-            raise ValueError(f"Error: Product ID {product.product_id} already exists in the inventory.")
+            existing_product = self.products[product.product_id]
+            raise ValueError(f"Error: Product ID '{product.product_id}' already exists in the inventory.\nExisting product details: {existing_product}")
+        
         self.products[product.product_id] = product
         print(f"Product added successfully! Details: {product}")
         self.save_to_file()
 
     def update_product(self, product_id, name=None, category=None, price=None, stock_quantity=None):
         if product_id not in self.products:
-            raise ValueError("Product not found.")
+            raise ValueError(f"Error: Product with ID '{product_id}' not found in the inventory.")
         
         product = self.products[product_id]
-
+        
         if stock_quantity is not None:
-            if product.stock_quantity + stock_quantity < self.low_stock_threshold:
-                print(f"Updating stock to {product.stock_quantity + stock_quantity} will bring stock below the threshold of {self.low_stock_threshold}.")
-                confirm = input("Do you want to proceed with this update? (yes/no): ")
-                if confirm.lower() != 'yes':
-                    print("Update canceled.")
-                    return
-                
-            if name is not None:
-                product.name = name
-            if category is not None:
-                product.category = category
-            if price is not None:
-                product.price = price
-            if stock_quantity is not None:
-                product.stock_quantity += stock_quantity
-
-            print("Product updated successfully.")
-            self.save_to_file()
+            new_stock = product.stock_quantity + stock_quantity
+            if new_stock < self.low_stock_threshold:
+                raise ValueError(f"Error: Updating stock to {new_stock} will bring stock below the threshold of {self.low_stock_threshold}.")
+        
+        if name is not None:
+            product.name = name
+        if category is not None:
+            product.category = category
+        if price is not None:
+            product.price = price
+        if stock_quantity is not None:
+            product.stock_quantity += stock_quantity
+        
+        print("Product updated successfully.")
+        self.save_to_file()
 
     def delete_product(self, product_id):
         if product_id not in self.products:
-            raise ValueError("Product not found.")
+            raise ValueError(f"Error: Product with ID '{product_id}' not found in the inventory.")
+        
         del self.products[product_id]
         print("Product deleted successfully.")
         self.save_to_file()
@@ -103,24 +103,25 @@ class Inventory:
 
 
 class Order:
-    def __init__(self, order_id, username, products):
+    def __init__(self, order_id, username, products, inventory):
         self.order_id = order_id
         self.username = username
         self.products = products
+        self.inventory = inventory
         self.total_amount = self.calculate_total()
 
     def calculate_total(self):
         total = 0
         for product_id, quantity in self.products:
-            if product_id in ims.inventory.products:
-                total += ims.inventory.products[product_id].price * quantity
+            if product_id in self.inventory.products:
+                total += self.inventory.products[product_id].price * quantity
         return total
-            
+
     def __str__(self):
         product_details = ', '.join([f"{product_id} (Qty: {quantity})" for product_id, quantity in self.products])
         return (f"Order ID: {self.order_id}, User: {self.username}, Products: {product_details}, "
                 f"Total Amount: ${self.total_amount:.2f}")
-    
+
 
 class User:
     def __init__(self, username, password, role):
@@ -177,8 +178,10 @@ class InventoryManagementSystem:
             print("6. Confirm Order")
             print("7. Reject Order")
             print("8. Logout")
+            print("9. Exit System")
+            print("10. Back")
             choice = input("Select an option: ")
-            try: 
+            try:
                 if choice == '1':
                     self.add_product()
                 elif choice == '2':
@@ -196,10 +199,17 @@ class InventoryManagementSystem:
                 elif choice == '8':
                     self.logout()
                     break
+                elif choice == '9':
+                    print("Exiting the system.")
+                    exit()
+                elif choice == '10':
+                    break
                 else:
                     print("Invalid option.")
-            except Exception as e:
+            except ValueError as e:
                 print(f"Error: {e}")
+            except Exception as e:
+                print(f"Unexpected error: {e}")
 
     def user_menu(self):
         while True:
@@ -208,6 +218,8 @@ class InventoryManagementSystem:
             print("2. Place Order")
             print("3. View Orders")
             print("4. Logout")
+            print("5. Exit System")
+            print("6. Back")
             choice = input("Select an option: ")
             if choice == '1':
                 self.inventory.view_all_products()
@@ -218,6 +230,11 @@ class InventoryManagementSystem:
             elif choice == '4':
                 self.logout()
                 break
+            elif choice == '5':
+                print("Exiting the system.")
+                exit()
+            elif choice == '6':
+                break
             else:
                 print("Invalid option.")
 
@@ -226,7 +243,7 @@ class InventoryManagementSystem:
             product_id = input("Enter product ID: ")
             if product_id in self.inventory.products:
                 existing_product = self.inventory.products[product_id]
-                print(f"Error: Product ID {product_id} already exists in the inventory. Details: {existing_product}")
+                print(f"Error: Product ID '{product_id}' already exists in the inventory.\nExisting product details: {existing_product}")
                 return
             
             name = input("Enter product name: ")
@@ -237,6 +254,8 @@ class InventoryManagementSystem:
             self.inventory.add_product(product)
         except ValueError as e:
             print(f"Error: {e}")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
 
     def update_product(self):
         try:
@@ -250,6 +269,8 @@ class InventoryManagementSystem:
             self.inventory.update_product(product_id, name, category, price, stock_quantity)
         except ValueError as e:
             print(f"Error: {e}")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
 
     def delete_product(self):
         try:
@@ -257,6 +278,8 @@ class InventoryManagementSystem:
             self.inventory.delete_product(product_id)
         except ValueError as e:
             print(f"Error: {e}")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
 
     def place_order(self):
         if self.logged_in_user:
@@ -274,7 +297,7 @@ class InventoryManagementSystem:
                 self.inventory.check_low_stock(product_id, quantity)
 
             order_id = len(self.orders) + 1
-            order = Order(order_id, self.logged_in_user.username, products_to_order)
+            order = Order(order_id, self.logged_in_user.username, products_to_order, self.inventory)
             self.orders.append(order)
             print(f"Order placed successfully! {order}")
 
